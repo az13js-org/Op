@@ -1,0 +1,14 @@
+bin
+obj
+*.cbp
+*.depend
+*.layout
+a.out
+__pycache__
+*.pyc
+*.model
+doc
+*.stackdump
+gmon.out
+gprofresult.txt
+build
