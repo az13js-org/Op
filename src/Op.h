@@ -33,12 +33,16 @@ private:
 
     int numberLeftOrRight; // 是左侧的还是右侧的
 
+    float opNumberMin = 0.0;
+
+    float opNumberMax = 1.0;
+
 public:
 
     static Op* getRandomNumberOp(float min, float max) {
         using namespace std;
         uniform_real_distribution<float> realDistribution(min, max);
-        return new Op(Op::OP_NUMBER, realDistribution(e));
+        return new Op(Op::OP_NUMBER, realDistribution(e), min, max);
     }
 
     static Op* getRandomOptionOp() {
@@ -47,7 +51,7 @@ public:
         return new Op(Op::OP_OPERATION, opTypeDistribution(e));
     }
 
-    static Op* getRandomOp(float min, float max) {
+    static Op* getRandomOp(float min = 0.0, float max = 1.0) {
         using namespace std;
         bernoulli_distribution boolDistribution(0.5);
         if (boolDistribution(e)) { // is OP_NUMBER
@@ -56,9 +60,18 @@ public:
         return getRandomOptionOp();
     }
 
-    Op(int opOpType, float number) {
+    static Op* createLike(Op* source) {
+        if (OP_OPERATION == source->getOpType()) {
+            return new Op(source->getOpType(), source->getTypeValue());
+        }
+        return new Op(source->getOpType(), source->getValue(), source->getMin(), source->getMax());
+    }
+
+    Op(int opOpType, float number, float min = 0.0, float max = 1.0) {
         opType = opOpType;
         opNumber = number;
+        opNumberMin = min;
+        opNumberMax = max;
     }
 
     Op(int opOpType, int number) {
@@ -67,7 +80,7 @@ public:
     }
 
     int getOpType() {
-        return opType;
+        return opType; // OP_OPERATION, OP_NUMBER
     }
 
     float getValue() {
@@ -75,7 +88,7 @@ public:
     }
 
     int getTypeValue() {
-        return opTypeNumber;
+        return opTypeNumber; // ADD, SUB, PRO, DES, END
     }
 
     void setOpAttribute(int opNumberAttribute) {
@@ -86,19 +99,59 @@ public:
         return numberLeftOrRight;
     }
 
+    float getMin() {
+        return opNumberMin;
+    }
+
+    float getMax() {
+        return opNumberMax;
+    }
+
+    /**
+     * 返回当前的 Op 需要的子 Op 数目
+     *
+     * @return int
+     */
+    int getOperandTotal() {
+        if (OP_NUMBER == opType) {
+            return 0;
+        }
+        return 2;
+    }
+
     void print(GNode::Node<Op*>* node) {
         using namespace std;
+        using namespace GNode;
         if (OP_NUMBER == opType) {
+            if (opNumber < 0) {
+                cout << "(";
+            }
             cout << opNumber;
+            if (opNumber < 0) {
+                cout << ")";
+            }
+            return;
+        }
+        Op* left = nullptr;
+        Op* right = nullptr;
+        Node<Op*>* nodeLeft = nullptr;
+        Node<Op*>* nodeRight = nullptr;
+        for (auto e : node->getNodes()) {
+            if (OP_ATTR_LEFT == e->getValue()->getOpAttribute()) {
+                left = e->getValue();
+                nodeLeft = e;
+            }
+            if (OP_ATTR_RIGHT == e->getValue()->getOpAttribute()) {
+                right = e->getValue();
+                nodeRight = e;
+            }
+        }
+        if (nullptr == left || nullptr == right) {
+            cout << "?";
             return;
         }
         cout << "(";
-        for (auto e : node->getNodes()) {
-            if (OP_ATTR_LEFT == e->getValue()->getOpAttribute()) {
-                e->getValue()->print(e);
-                break;
-            }
-        }
+        left->print(nodeLeft);
         if (ADD == opTypeNumber) {
             cout << "+";
         }
@@ -111,15 +164,16 @@ public:
         if (DES == opTypeNumber) {
             cout << "/";
         }
-        for (auto e : node->getNodes()) {
-            if (OP_ATTR_RIGHT == e->getValue()->getOpAttribute()) {
-                e->getValue()->print(e);
-                break;
-            }
-        }
+        right->print(nodeRight);
         cout << ")";
     }
 
+    /**
+     * 执行表达式计算
+     *
+     * @param Node<Op*>* node 节点
+     * @return float
+     */
     float calculate(GNode::Node<Op*>* node) {
         using namespace std;
         if (OP_NUMBER == opType) {
@@ -143,7 +197,7 @@ public:
         if (PRO == opTypeNumber) {
             return left * right;
         }
-        if (right < 0.000001) {
+        if (right < 1E-6) {
             return 0;
         }
         return left / right;

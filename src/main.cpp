@@ -16,6 +16,8 @@ int main() {
     auto gepSequence = new Node<Op*>*[operationOpTotal + numberOpTotal];
     queue<Node<Op*>*> hungryQueue;
     Node<Op*>* workingNode;
+    Node<Op*>* childNode;
+    Op* childNodeOp;
     int emptyChildNumber;
     Op* rootOp = Op::getRandomOptionOp();
     while (Op::END == rootOp->getTypeValue()) {
@@ -36,16 +38,26 @@ int main() {
     while (!hungryQueue.empty()) {
         workingNode = hungryQueue.front();
         hungryQueue.pop();
-        emptyChildNumber = Op::OP_OPERATION == workingNode->getValue()->getOpType() ? 2 : 0;
+        emptyChildNumber = workingNode->getValue()->getOperandTotal();
         while (emptyChildNumber > 0) {
-            if (Op::OP_OPERATION == gepSequence[offset]->getValue()->getOpType()) {
-                if (Op::END == workingNode->getValue()->getTypeValue()) {
+            childNodeOp = gepSequence[offset]->getValue();
+            if (Op::OP_OPERATION == childNodeOp->getOpType()) {
+                if (Op::END != childNodeOp->getTypeValue()) {
+                    childNode = gepSequence[offset];
+                    hungryQueue.push(childNode);
+                } else {
                     offset = operationOpTotal;
+                    childNodeOp = gepSequence[operationOpTotal]->getValue();
+                    childNode = gepSequence[operationOpTotal];
                 }
-                hungryQueue.push(gepSequence[offset]);
+            } else {
+                childNode = gepSequence[offset];
             }
-            gepSequence[offset]->getValue()->setOpAttribute(2 == emptyChildNumber ? Op::OP_ATTR_LEFT : Op::OP_ATTR_RIGHT);
-            workingNode->add(gepSequence[offset]);
+            childNodeOp->setOpAttribute(
+                workingNode->getValue()->getOperandTotal() - emptyChildNumber == 0 ?
+                Op::OP_ATTR_LEFT : Op::OP_ATTR_RIGHT
+            );
+            workingNode->add(childNode);
             offset++;
             emptyChildNumber--;
             if (offset == operationOpTotal + numberOpTotal) {
